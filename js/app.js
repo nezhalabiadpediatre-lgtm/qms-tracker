@@ -23,13 +23,12 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Init
 async function initApp() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-        currentUser = session.user;
-        showApp();
-    } else {
-        showAuth();
-    }
+    // On simule un utilisateur par défaut pour éviter les erreurs dans le reste du code
+    currentUser = { id: '00000000-0000-0000-0000-000000000000', email: 'Qualité (Accès Libre)' };
+    
+    // On affiche directement l'application
+    showApp();
+}
 
     // Auth Listener
     supabaseClient.auth.onAuthStateChange((event, session) => {
