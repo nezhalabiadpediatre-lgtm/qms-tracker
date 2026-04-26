@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QMS Tracker - Futuristic</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        neonCyan: '#00f3ff',
+                        neonPurple: '#bc13fe',
+                        darkBg: '#0b0c10',
+                        darkSurface: '#1f2833'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- SheetJS for Excel Export -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-darkBg text-gray-200 font-sans min-h-screen flex flex-col antialiased">
+
+    <!-- Navbar -->
+    <nav class="border-b border-neonCyan/30 bg-darkSurface/80 backdrop-blur-md px-6 py-4 flex justify-between items-center sticky top-0 z-50 shadow-glow">
+        <div class="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-neonCyan to-neonPurple tracking-wider">
+            <i class="fa-solid fa-microscope mr-2 text-neonCyan"></i>QMS Tracker
+        </div>
+        <div id="nav-actions" class="hidden flex gap-4 items-center">
+            <span id="user-display" class="text-sm font-medium text-gray-300"></span>
+            <button id="btn-logout" class="text-sm bg-red-600/20 text-red-400 border border-red-500/50 hover:bg-red-600/40 px-4 py-2 rounded transition-all">Déconnexion</button>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="flex-grow container mx-auto p-4 md:p-8 relative">
+
+        <!-- Auth Section -->
+        <section id="auth-section" class="max-w-md mx-auto mt-20 p-8 bg-darkSurface border border-neonCyan/20 rounded-xl shadow-[0_0_20px_rgba(0,243,255,0.1)]">
+            <h2 class="text-3xl font-bold mb-6 text-center text-white">Connexion</h2>
+            <form id="auth-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Email</label>
+                    <input type="email" id="email" required class="w-full bg-darkBg border border-gray-700 focus:border-neonCyan text-white rounded p-3 outline-none transition-colors">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Mot de passe</label>
+                    <input type="password" id="password" required class="w-full bg-darkBg border border-gray-700 focus:border-neonCyan text-white rounded p-3 outline-none transition-colors">
+                </div>
+                <button type="submit" class="w-full bg-gradient-to-r from-neonCyan to-blue-500 text-darkBg font-bold py-3 rounded hover:shadow-[0_0_15px_rgba(0,243,255,0.6)] transition-all">Se Connecter</button>
+                <p class="text-xs text-center text-gray-500 mt-4">Contactez l'administrateur pour créer un compte.</p>
+            </form>
+        </section>
+
+        <!-- App Content (Hidden by default) -->
+        <section id="app-section" class="hidden space-y-8">
+
+            <!-- Tabs -->
+            <div class="flex flex-wrap gap-4 border-b border-gray-700 pb-2">
+                <button class="tab-btn active" data-target="dashboard">Tableau de Bord</button>
+                <button class="tab-btn" data-target="events">Événements Qualité</button>
+                <button class="tab-btn" data-target="departments">Départements</button>
+            </div>
+
+            <!-- Dashboard -->
+            <div id="dashboard" class="tab-content active space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="stat-card">
+                        <h3>Total Événements</h3>
+                        <div class="text-4xl font-bold text-neonCyan" id="stat-total">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>En Cours</h3>
+                        <div class="text-4xl font-bold text-yellow-400" id="stat-pending">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Réalisés</h3>
+                        <div class="text-4xl font-bold text-green-400" id="stat-done">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Departments -->
+            <div id="departments" class="tab-content hidden space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-2xl font-bold">Gestion des Départements</h2>
+                    <button id="btn-add-dept" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>Nouveau</button>
+                </div>
+                <div class="bg-darkSurface p-4 rounded border border-gray-800">
+                    <ul id="dept-list" class="space-y-2"></ul>
+                </div>
+            </div>
+
+            <!-- Events -->
+            <div id="events" class="tab-content hidden space-y-6">
+                <div class="flex flex-wrap justify-between items-center gap-4">
+                    <h2 class="text-2xl font-bold">Registre des Événements</h2>
+                    <div class="flex gap-4">
+                        <button id="btn-export" class="btn-secondary"><i class="fa-solid fa-file-excel mr-2"></i>Exporter</button>
+                        <button id="btn-add-event" class="btn-primary"><i class="fa-solid fa-plus mr-2"></i>Déclarer</button>
+                    </div>
+                </div>
+
+                <!-- Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-darkSurface rounded border border-gray-800">
+                    <select id="filter-type" class="input-field"><option value="">Tous les types</option></select>
+                    <select id="filter-dept" class="input-field"><option value="">Tous les départements</option></select>
+                    <select id="filter-status" class="input-field">
+                        <option value="">Tous les statuts</option>
+                        <option value="En cours">En cours</option>
+                        <option value="Réalisé">Réalisé</option>
+                    </select>
+                    <button id="btn-filter" class="btn-secondary w-full">Filtrer</button>
+                </div>
+
+                <!-- Table -->
+                <div class="overflow-x-auto bg-darkSurface rounded border border-gray-800">
+                    <table class="w-full text-left text-sm">
+                        <thead class="bg-gray-800 text-neonCyan">
+                            <tr>
+                                <th class="p-4">ID</th>
+                                <th class="p-4">Type</th>
+                                <th class="p-4">Département</th>
+                                <th class="p-4">Date</th>
+                                <th class="p-4">Statut</th>
+                                <th class="p-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-table-body" class="divide-y divide-gray-800">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modals -->
+    <!-- Event Form Modal -->
+    <div id="event-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-darkSurface border border-neonCyan/30 p-6 rounded-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto glow-box">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-white" id="event-modal-title">Nouvel Événement</h2>
+                <button class="close-modal text-gray-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <form id="event-form" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="hidden" id="event-id">
+
+                <div>
+                    <label class="block text-sm mb-1">Type d'événement *</label>
+                    <select id="ev-type" required class="input-field">
+                        <option value="Déviation">Déviation</option>
+                        <option value="CAPA">CAPA</option>
+                        <option value="Réclamation">Réclamation</option>
+                        <option value="Action CC">Action CC</option>
+                        <option value="Action maîtrise de risque">Action maîtrise de risque</option>
+                        <option value="Remarque d’amélioration">Remarque d’amélioration</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Département *</label>
+                    <select id="ev-dept" required class="input-field"></select>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Date d'événement *</label>
+                    <input type="date" id="ev-date" required class="input-field">
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Statut *</label>
+                    <select id="ev-status" required class="input-field">
+                        <option value="En cours">En cours</option>
+                        <option value="Réalisé">Réalisé</option>
+                    </select>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm mb-1">Description *</label>
+                    <textarea id="ev-desc" required rows="3" class="input-field"></textarea>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm mb-1">Cause Racine</label>
+                    <textarea id="ev-root" rows="2" class="input-field"></textarea>
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm mb-1">Action(s) définie(s) *</label>
+                    <textarea id="ev-action" required rows="2" class="input-field"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Responsable d'action *</label>
+                    <input type="text" id="ev-owner" required class="input-field">
+                </div>
+
+                <div class="flex items-center mt-6">
+                    <input type="checkbox" id="ev-recurrence" class="w-5 h-5 accent-neonPurple">
+                    <label class="ml-2 text-sm">Événement récurrent</label>
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Date prévue *</label>
+                    <input type="date" id="ev-planned" required class="input-field">
+                </div>
+
+                <div>
+                    <label class="block text-sm mb-1">Date de réalisation</label>
+                    <input type="date" id="ev-completed" class="input-field">
+                </div>
+
+                <div class="md:col-span-2 mt-4 flex justify-end gap-4">
+                    <button type="button" class="close-modal btn-secondary">Annuler</button>
+                    <button type="submit" class="btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Dept Form Modal -->
+    <div id="dept-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-darkSurface border border-neonCyan/30 p-6 rounded-xl w-full max-w-sm glow-box">
+            <h2 class="text-xl font-bold text-white mb-4">Nouveau Département</h2>
+            <form id="dept-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm mb-1">Nom du département</label>
+                    <input type="text" id="dept-name" required class="input-field">
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" class="close-modal btn-secondary">Annuler</button>
+                    <button type="submit" class="btn-primary">Créer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
