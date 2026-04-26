@@ -3,7 +3,7 @@
 // Initialize Supabase
 const supabaseUrl = CONFIG.SUPABASE_URL;
 const supabaseKey = CONFIG.SUPABASE_ANON_KEY;
-const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+const supabaseClient = window.supabaseClient.createClient(supabaseUrl, supabaseKey);
 
 // Global State
 let currentUser = null;
@@ -23,7 +23,7 @@ const tabContents = document.querySelectorAll('.tab-content');
 
 // Init
 async function initApp() {
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         currentUser = session.user;
         showApp();
@@ -32,7 +32,7 @@ async function initApp() {
     }
 
     // Auth Listener
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
         if (session) {
             currentUser = session.user;
             showApp();
@@ -49,14 +49,14 @@ authForm.addEventListener('submit', async (e) => {
     const email = document.getElementById('email').value;
     const password = document.getElementById('password').value;
 
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) {
         alert("Erreur de connexion : " + error.message);
     }
 });
 
 btnLogout.addEventListener('click', async () => {
-    await supabase.auth.signOut();
+    await supabaseClient.auth.signOut();
 });
 
 // UI Routing
@@ -114,7 +114,7 @@ document.getElementById('dept-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('dept-name').value;
 
-    const { data, error } = await supabase.from('departments').insert([{ name }]);
+    const { data, error } = await supabaseClient.from('departments').insert([{ name }]);
     if (error) alert(error.message);
     else {
         document.getElementById('dept-modal').classList.add('hidden');
@@ -124,7 +124,7 @@ document.getElementById('dept-form').addEventListener('submit', async (e) => {
 });
 
 async function loadDepartments() {
-    const { data, error } = await supabase.from('departments').select('*').order('name');
+    const { data, error } = await supabaseClient.from('departments').select('*').order('name');
     if (error) return console.error(error);
 
     departmentsList = data;
@@ -168,11 +168,11 @@ document.getElementById('event-form').addEventListener('submit', async (e) => {
 
     let error;
     if (id) {
-        const res = await supabase.from('quality_events').update(payload).eq('id', id);
+        const res = await supabaseClient.from('quality_events').update(payload).eq('id', id);
         error = res.error;
     } else {
         payload.created_by = currentUser.id;
-        const res = await supabase.from('quality_events').insert([payload]);
+        const res = await supabaseClient.from('quality_events').insert([payload]);
         error = res.error;
     }
 
@@ -185,7 +185,7 @@ document.getElementById('event-form').addEventListener('submit', async (e) => {
 
 async function loadEvents() {
     // Basic query
-    let query = supabase.from('quality_events').select(`*, departments(name)`);
+    let query = supabaseClient.from('quality_events').select(`*, departments(name)`);
 
     // Apply filters
     const typeF = document.getElementById('filter-type').value;
